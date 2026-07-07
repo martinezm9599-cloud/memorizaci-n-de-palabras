@@ -370,7 +370,7 @@ const app = document.getElementById('app');
 const boardEl = document.getElementById('board');
 
 let state = {
-  screen: 'setup', // setup | playing | win | level2 | level2done
+  screen: 'setup', // setup | levelSelect | playing | difficult | win
   words: [],
   queue: [],
   currentIndex: 0,
@@ -378,9 +378,9 @@ let state = {
   score: 0,
   streak: 0,
   answered: false,
-  level2Queue: [],
-  level2Index: 0,
-  level2State: 'answering' // answering | wrong
+  difficultQueue: [],
+  difficultIndex: 0,
+  revealed: false
 };
 
 function parseWords(text){
@@ -422,9 +422,13 @@ function shuffle(arr){
 }
 
 function render(){
-  document.getElementById('subtitle').textContent = '// asociá cada palabra con su definición';
+  document.getElementById('subtitle').textContent = state.screen === 'difficult'
+    ? '// nivel difícil: respondé de memoria y comprobá vos mismo'
+    : '// asociá cada palabra con su definición';
   if(state.screen === 'setup') return renderSetup();
+  if(state.screen === 'levelSelect') return renderLevelSelect();
   if(state.screen === 'playing') return renderPlaying();
+  if(state.screen === 'difficult') return renderDifficult();
   if(state.screen === 'win') return renderEnd();
 }
 
@@ -436,7 +440,7 @@ function renderSetup(){
       <div class="hint-text">Formato: <em>palabra en español: definición en inglés</em>, una por línea.</div>
       <div class="word-count" id="wordCount">El pizarrón está vacío. Pegá tu lista arriba.</div>
       <div class="actions-row">
-        <button class="chalk-btn primary" id="startBtn">Empezar el juego</button>
+        <button class="chalk-btn primary" id="startBtn">Empezar</button>
       </div>
     </div>
   `;
@@ -465,7 +469,39 @@ function renderSetup(){
       wordCountEl.style.color = 'var(--chalk-coral)';
       return;
     }
-    startGame(parsed);
+    goToLevelSelect(parsed);
+  });
+}
+
+function goToLevelSelect(words){
+  state.words = words;
+  state.screen = 'levelSelect';
+  render();
+}
+
+function renderLevelSelect(){
+  app.innerHTML = `
+    <div class="question-card">
+      <div class="eyebrow">elegí tu nivel</div>
+      <div class="palabra" style="font-size:1.6rem;">¿Cómo querés practicar?</div>
+    </div>
+    <div class="options" id="levelGrid">
+      <button class="option-btn level-choice" id="easyBtn">
+        <strong>Easy</strong><br>Elegí la definición correcta entre varias opciones.
+      </button>
+      <button class="option-btn level-choice" id="difficultBtn">
+        <strong>Difficult</strong><br>Respondé de memoria y comprobá vos mismo si acertaste.
+      </button>
+    </div>
+    <div class="actions-row" style="margin-top:20px;">
+      <button class="chalk-btn" id="backBtn">Volver a editar lista</button>
+    </div>
+  `;
+  document.getElementById('easyBtn').addEventListener('click', () => startGame(state.words));
+  document.getElementById('difficultBtn').addEventListener('click', () => startDifficult(state.words));
+  document.getElementById('backBtn').addEventListener('click', () => {
+    state.screen = 'setup';
+    render();
   });
 }
 
@@ -490,6 +526,16 @@ function buildOptionsForCurrent(){
   state.answered = false;
 }
 
+function startDifficult(words){
+  state.words = words;
+  state.difficultQueue = shuffle(words);
+  state.difficultIndex = 0;
+  state.score = 0;
+  state.revealed = false;
+  state.screen = 'difficult';
+  render();
+}
+
 function renderPlaying(){
   const current = state.queue[state.currentIndex];
 
@@ -499,7 +545,6 @@ function renderPlaying(){
       <div class="progress-box">${state.currentIndex + 1} / ${state.queue.length}</div>
     </div>
     <div class="question-card">
-      <div class="level-tag">Nivel 1</div>
       <div class="eyebrow">¿qué significa...?</div>
       <div class="palabra">${current.palabra}</div>
     </div>
@@ -557,20 +602,93 @@ function handleAnswer(i){
   }, 1100);
 }
 
+function renderDifficult(){
+  const current = state.difficultQueue[state.difficultIndex];
+  state.revealed = false;
+
+  app.innerHTML = `
+    <div class="hud">
+      <div class="score-box">PUNTOS: ${state.score}</div>
+      <div class="progress-box">${state.difficultIndex + 1} / ${state.difficultQueue.length}</div>
+    </div>
+    <div class="question-card">
+      <div class="eyebrow">¿qué significa...?</div>
+      <div class="palabra">${current.palabra}</div>
+    </div>
+    <div id="difficultBody" style="text-align:center;"></div>
+  `;
+
+  const body = document.getElementById('difficultBody');
+
+  function showPrompt(){
+    body.innerHTML = `
+      <div class="actions-row">
+        <button class="chalk-btn primary" id="revealBtn">Mostrar respuesta</button>
+      </div>
+    `;
+    document.getElementById('revealBtn').addEventListener('click', showAnswer);
+  }
+
+  function showAnswer(){
+    body.innerHTML = `
+      <div class="reveal-answer" style="font-size:1.3rem; margin-bottom:18px;">${current.definicion}</div>
+      <div class="feedback-line" id="feedback"></div>
+      <div class="actions-row">
+        <button class="chalk-btn primary" id="correctBtn">Correcto</button>
+        <button class="chalk-btn" id="wrongBtn">Me equivoqué</button>
+      </div>
+    `;
+    document.getElementById('correctBtn').addEventListener('click', () => handleDifficultAnswer(true));
+    document.getElementById('wrongBtn').addEventListener('click', () => handleDifficultAnswer(false));
+  }
+
+  showPrompt();
+}
+
+function handleDifficultAnswer(wasCorrect){
+  const current = state.difficultQueue[state.difficultIndex];
+  const feedback = document.getElementById('feedback');
+  const buttons = document.querySelectorAll('#difficultBody .chalk-btn');
+  buttons.forEach(b => b.disabled = true);
+
+  if(wasCorrect){
+    state.streak += 1;
+    state.score += 10 + (state.streak - 1) * 2;
+    feedback.textContent = state.streak > 1 ? `¡Bien! Racha de ${state.streak} 🟡` : '¡Bien!';
+    feedback.className = 'feedback-line ok';
+  } else {
+    state.streak = 0;
+    feedback.textContent = 'Tranquilo/a, esa palabra vuelve a aparecer más adelante.';
+    feedback.className = 'feedback-line bad';
+    // esta palabra se vuelve a preguntar al final del nivel
+    state.difficultQueue.push(current);
+  }
+
+  setTimeout(() => {
+    state.difficultIndex += 1;
+    if(state.difficultIndex >= state.difficultQueue.length){
+      state.screen = 'win';
+      render();
+      return;
+    }
+    render();
+  }, 1000);
+}
+
 function renderEnd(){
-  const total = state.queue.length;
+  const total = state.words.length;
   app.innerHTML = `
     <div class="end-screen">
       <div class="end-title win">¡Completaste la lista! 🎉</div>
       <div class="end-stats">Puntaje final: ${state.score} · Palabras vistas: ${total} / ${total}</div>
       <div class="actions-row">
-        <button class="chalk-btn primary" id="retryBtn">Jugar de nuevo</button>
+        <button class="chalk-btn primary" id="retryBtn">Elegir nivel de nuevo</button>
         <button class="chalk-btn" id="editBtn">Editar lista</button>
       </div>
     </div>
   `;
   document.getElementById('retryBtn').addEventListener('click', () => {
-    startGame(state.words);
+    goToLevelSelect(state.words);
   });
   document.getElementById('editBtn').addEventListener('click', () => {
     state.screen = 'setup';
