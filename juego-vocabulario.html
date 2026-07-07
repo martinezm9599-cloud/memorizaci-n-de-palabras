@@ -347,7 +347,7 @@
 <div class="frame">
   <div class="board" id="board">
     <h1 class="title">El Pizarrón</h1>
-    <div class="subtitle" id="subtitle">// asociá cada palabra con su definición antes de quedarte sin tiza</div>
+    <div class="subtitle" id="subtitle">// asociá cada palabra con su definición</div>
     <div id="app"></div>
   </div>
   <div class="tray"></div>
@@ -422,14 +422,10 @@ function shuffle(arr){
 }
 
 function render(){
-  document.getElementById('subtitle').textContent = state.screen === 'level2' || state.screen === 'level2done'
-    ? '// nivel 2: escribí la definición en inglés vos mismo'
-    : '// asociá cada palabra con su definición antes de quedarte sin tiza';
+  document.getElementById('subtitle').textContent = '// asociá cada palabra con su definición';
   if(state.screen === 'setup') return renderSetup();
   if(state.screen === 'playing') return renderPlaying();
   if(state.screen === 'win') return renderEnd();
-  if(state.screen === 'level2') return renderLevel2();
-  if(state.screen === 'level2done') return renderLevel2Done();
 }
 
 function renderSetup(){
@@ -441,14 +437,12 @@ function renderSetup(){
       <div class="word-count" id="wordCount">El pizarrón está vacío. Pegá tu lista arriba.</div>
       <div class="actions-row">
         <button class="chalk-btn primary" id="startBtn">Empezar el juego</button>
-        <button class="chalk-btn ghost" id="exampleBtn">Cargar ejemplo</button>
       </div>
     </div>
   `;
   const textarea = document.getElementById('wordInput');
   const wordCountEl = document.getElementById('wordCount');
   const startBtn = document.getElementById('startBtn');
-  const exampleBtn = document.getElementById('exampleBtn');
 
   function updateCount(){
     const parsed = parseWords(textarea.value);
@@ -463,12 +457,6 @@ function renderSetup(){
   }
   updateCount();
   textarea.addEventListener('input', updateCount);
-
-  exampleBtn.addEventListener('click', () => {
-    textarea.value = EXAMPLE_LIST;
-    updateCount();
-    textarea.focus();
-  });
 
   startBtn.addEventListener('click', () => {
     const parsed = parseWords(textarea.value);
@@ -573,138 +561,10 @@ function renderEnd(){
   const total = state.queue.length;
   app.innerHTML = `
     <div class="end-screen">
-      <div class="end-title win">¡Completaste el nivel 1! 🎉</div>
+      <div class="end-title win">¡Completaste la lista! 🎉</div>
       <div class="end-stats">Puntaje final: ${state.score} · Palabras vistas: ${total} / ${total}</div>
       <div class="actions-row">
-        <button class="chalk-btn primary" id="nextLevelBtn">Pasar al siguiente nivel</button>
-        <button class="chalk-btn" id="retryBtn">Jugar de nuevo</button>
-        <button class="chalk-btn" id="editBtn">Editar lista</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('retryBtn').addEventListener('click', () => {
-    startGame(state.words);
-  });
-  document.getElementById('editBtn').addEventListener('click', () => {
-    state.screen = 'setup';
-    render();
-  });
-  document.getElementById('nextLevelBtn').addEventListener('click', () => {
-    startLevel2(state.words);
-  });
-}
-
-/* ---------------- NIVEL 2: respuesta escrita ---------------- */
-
-function startLevel2(words){
-  state.level2Queue = shuffle(words);
-  state.level2Index = 0;
-  state.level2State = 'answering';
-  state.screen = 'level2';
-  render();
-}
-
-function renderLevel2(){
-  const current = state.level2Queue[state.level2Index];
-  app.innerHTML = `
-    <div class="hud">
-      <div class="score-box">PUNTOS: ${state.score}</div>
-      <div class="progress-box">${state.level2Index + 1} / ${state.level2Queue.length}</div>
-    </div>
-    <div class="question-card">
-      <div class="level-tag">Nivel 2</div>
-      <div class="eyebrow">escribí la definición en inglés</div>
-      <div class="palabra">${current.palabra}</div>
-    </div>
-    <input type="text" class="answer-input" id="answerInput" autocomplete="off" placeholder="tu respuesta en inglés..." />
-    <div class="feedback-line" id="feedback"></div>
-    <div class="actions-row" id="level2Actions"></div>
-  `;
-
-  const input = document.getElementById('answerInput');
-  input.focus();
-  input.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter') checkLevel2Answer();
-  });
-
-  const actions = document.getElementById('level2Actions');
-  const submitBtn = document.createElement('button');
-  submitBtn.className = 'chalk-btn primary';
-  submitBtn.textContent = 'Comprobar';
-  submitBtn.addEventListener('click', checkLevel2Answer);
-  actions.appendChild(submitBtn);
-}
-
-function checkLevel2Answer(){
-  const current = state.level2Queue[state.level2Index];
-  const input = document.getElementById('answerInput');
-  const feedback = document.getElementById('feedback');
-  const actions = document.getElementById('level2Actions');
-  if(input.disabled) return;
-
-  const isCorrect = normalizeAnswer(input.value) === normalizeAnswer(current.definicion);
-
-  input.disabled = true;
-  actions.innerHTML = '';
-
-  if(isCorrect){
-    input.classList.add('correct-input');
-    state.score += 15;
-    feedback.textContent = '¡Correcto! 🟢';
-    feedback.className = 'feedback-line ok';
-    setTimeout(() => advanceLevel2(), 1000);
-  } else {
-    input.classList.add('wrong-input');
-    feedback.textContent = 'No es la definición correcta.';
-    feedback.className = 'feedback-line bad';
-
-    const retryBtn = document.createElement('button');
-    retryBtn.className = 'chalk-btn';
-    retryBtn.textContent = 'Reintentar';
-    retryBtn.addEventListener('click', () => {
-      input.disabled = false;
-      input.value = '';
-      input.classList.remove('wrong-input');
-      input.focus();
-      feedback.textContent = '';
-      actions.innerHTML = '';
-      actions.appendChild(retryBtn);
-      actions.appendChild(showBtn);
-    });
-
-    const showBtn = document.createElement('button');
-    showBtn.className = 'chalk-btn primary';
-    showBtn.textContent = 'Mostrar respuesta y avanzar';
-    showBtn.addEventListener('click', () => {
-      feedback.innerHTML = `La respuesta era: <span class="reveal-answer">${current.definicion}</span>`;
-      actions.innerHTML = '';
-      // esta palabra se vuelve a preguntar al final del nivel
-      state.level2Queue.push(current);
-      setTimeout(() => advanceLevel2(), 1400);
-    });
-
-    actions.appendChild(retryBtn);
-    actions.appendChild(showBtn);
-  }
-}
-
-function advanceLevel2(){
-  state.level2Index += 1;
-  if(state.level2Index >= state.level2Queue.length){
-    state.screen = 'level2done';
-    render();
-    return;
-  }
-  render();
-}
-
-function renderLevel2Done(){
-  app.innerHTML = `
-    <div class="end-screen">
-      <div class="end-title win">¡Completaste los dos niveles! 🏆</div>
-      <div class="end-stats">Puntaje final: ${state.score}</div>
-      <div class="actions-row">
-        <button class="chalk-btn primary" id="retryBtn">Jugar de nuevo desde el nivel 1</button>
+        <button class="chalk-btn primary" id="retryBtn">Jugar de nuevo</button>
         <button class="chalk-btn" id="editBtn">Editar lista</button>
       </div>
     </div>
