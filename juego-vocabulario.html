@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Pizarrón — Juego de Vocabulario</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{
+    --board-green: #2c4a3e;
+    --board-green-dark: #223b31;
+    --frame-brown: #6b4226;
+    --frame-brown-dark: #4e2f1a;
+    --chalk-white: #f5f5f0;
+    --chalk-yellow: #f2c14e;
+    --chalk-coral: #e8735c;
+    --chalk-blue: #7fb0d8;
+    --tray-wood: #8a5a34;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background: var(--frame-brown-dark);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.03), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(255,255,255,0.03), transparent 40%);
+    font-family: 'Inter', sans-serif;
+    color: var(--chalk-white);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+  }
+
+  .frame{
+    width:100%;
+    max-width: 720px;
+    background: var(--frame-brown);
+    border-radius: 14px;
+    padding: 18px 18px 0 18px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45), inset 0 0 0 3px rgba(0,0,0,0.15);
+  }
+
+  .board{
+    position:relative;
+    background: var(--board-green);
+    border-radius: 8px;
+    padding: 32px 28px 24px;
+    min-height: 420px;
+    overflow:hidden;
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.35);
+  }
+
+  .board::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 40px);
+    pointer-events:none;
+  }
+
+  h1.title{
+    font-family:'Kalam', cursive;
+    font-weight:700;
+    font-size: 2rem;
+    margin: 0 0 4px;
+    color: var(--chalk-white);
+    text-shadow: 0 0 6px rgba(255,255,255,0.15);
+    letter-spacing: 0.5px;
+  }
+  .subtitle{
+    font-family:'Space Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--chalk-blue);
+    margin-bottom: 20px;
+    opacity: 0.85;
+  }
+
+  /* ---------- SETUP SCREEN ---------- */
+  .setup label{
+    display:block;
+    font-family:'Kalam', cursive;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    color: var(--chalk-yellow);
+  }
+  textarea{
+    width:100%;
+    min-height: 220px;
+    background: rgba(0,0,0,0.25);
+    border: 1px dashed rgba(255,255,255,0.35);
+    border-radius: 8px;
+    color: var(--chalk-white);
+    font-family:'Space Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    padding: 14px;
+    resize: vertical;
+  }
+  textarea:focus{
+    outline: 2px solid var(--chalk-yellow);
+    outline-offset: 2px;
+  }
+  .hint-text{
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.55);
+    margin: 8px 0 18px;
+    font-family:'Inter';
+  }
+  .word-count{
+    font-family:'Space Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--chalk-blue);
+    margin-bottom: 16px;
+  }
+
+  /* ---------- BUTTONS ---------- */
+  .chalk-btn{
+    font-family:'Kalam', cursive;
+    font-size: 1.1rem;
+    font-weight:700;
+    background: transparent;
+    color: var(--chalk-white);
+    border: 2.5px solid var(--chalk-white);
+    border-radius: 10px;
+    padding: 12px 26px;
+    cursor:pointer;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  }
+  .chalk-btn:hover{
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-2px);
+  }
+  .chalk-btn:focus-visible{
+    outline: 3px solid var(--chalk-yellow);
+    outline-offset: 3px;
+  }
+  .chalk-btn.primary{
+    border-color: var(--chalk-yellow);
+    color: var(--chalk-yellow);
+  }
+  .chalk-btn.primary:hover{
+    background: rgba(242,193,78,0.12);
+  }
+
+  /* ---------- HUD ---------- */
+  .hud{
+    display:flex;
+    justify-content: space-between;
+    align-items:center;
+    margin-bottom: 22px;
+    font-family:'Space Mono', monospace;
+    font-size: 0.85rem;
+  }
+  .lives{ display:flex; gap:6px; }
+  .chalk-stub{
+    width: 22px; height: 10px;
+    background: var(--chalk-white);
+    border-radius: 3px;
+    box-shadow: 0 0 4px rgba(255,255,255,0.5);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .chalk-stub.lost{
+    opacity: 0.15;
+    transform: scaleX(0.3);
+    background: rgba(255,255,255,0.1);
+    box-shadow:none;
+  }
+  .score-box, .progress-box{ color: var(--chalk-blue); }
+
+  /* ---------- QUESTION ---------- */
+  .question-card{
+    text-align:center;
+    margin-bottom: 26px;
+  }
+  .eyebrow{
+    font-family:'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--chalk-blue);
+    opacity:0.8;
+    margin-bottom: 6px;
+  }
+  .palabra{
+    font-family:'Kalam', cursive;
+    font-weight:700;
+    font-size: 2.6rem;
+    color: var(--chalk-white);
+    text-shadow: 0 0 8px rgba(255,255,255,0.2);
+    margin: 4px 0;
+  }
+  .level-tag{
+    display:inline-block;
+    font-family:'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--board-green-dark);
+    background: var(--chalk-yellow);
+    border-radius: 4px;
+    padding: 3px 10px;
+    margin-bottom: 10px;
+  }
+
+  /* ---------- LEVEL 2 (escritura libre) ---------- */
+  .answer-input{
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    display:block;
+    background: rgba(0,0,0,0.25);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 10px;
+    color: var(--chalk-white);
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    padding: 12px 16px;
+    text-align:center;
+  }
+  .answer-input:focus{
+    outline: none;
+    border-color: var(--chalk-yellow);
+  }
+  .answer-input.wrong-input{
+    border-color: var(--chalk-coral);
+  }
+  .answer-input.correct-input{
+    border-color: #7bd88f;
+  }
+  .reveal-answer{
+    font-family:'Space Mono', monospace;
+    font-size: 0.95rem;
+    color: var(--chalk-yellow);
+    margin-top: 10px;
+  }
+
+  .options{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 480px){
+    .options{ grid-template-columns: 1fr; }
+    .palabra{ font-size: 2rem; }
+  }
+
+  .option-btn{
+    font-family:'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight:500;
+    background: rgba(255,255,255,0.04);
+    color: var(--chalk-white);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 10px;
+    padding: 16px 14px;
+    cursor:pointer;
+    transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+    text-align:left;
+  }
+  .option-btn:hover:not(:disabled){
+    border-color: var(--chalk-yellow);
+    background: rgba(242,193,78,0.08);
+    transform: translateY(-2px);
+  }
+  .option-btn:focus-visible{
+    outline: 3px solid var(--chalk-yellow);
+    outline-offset: 2px;
+  }
+  .option-btn:disabled{ cursor:default; }
+  .option-btn.correct{
+    border-color: #7bd88f;
+    background: rgba(123,216,143,0.15);
+    color: #d7f7de;
+  }
+  .option-btn.wrong{
+    border-color: var(--chalk-coral);
+    background: rgba(232,115,92,0.15);
+    color: #ffd9d0;
+  }
+
+  /* eraser wipe animation */
+  .eraser-wipe{
+    position:absolute;
+    top:0; left: -140px;
+    width: 120px; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    filter: blur(6px);
+    pointer-events:none;
+    animation: wipe 0.6s ease forwards;
+  }
+  @keyframes wipe{
+    to{ left: 110%; }
+  }
+
+  .feedback-line{
+    font-family:'Kalam', cursive;
+    font-size: 1.1rem;
+    min-height: 1.4em;
+    margin-top: 18px;
+    text-align:center;
+  }
+  .feedback-line.ok{ color:#7bd88f; }
+  .feedback-line.bad{ color: var(--chalk-coral); }
+
+  .tray{
+    height: 26px;
+    background: var(--tray-wood);
+    border-radius: 0 0 8px 8px;
+    margin-top: 14px;
+    box-shadow: inset 0 4px 8px rgba(0,0,0,0.3);
+  }
+
+  /* ---------- END SCREENS ---------- */
+  .end-screen{ text-align:center; padding: 30px 0; }
+  .end-title{
+    font-family:'Kalam', cursive;
+    font-size: 2.4rem;
+    margin-bottom: 6px;
+  }
+  .end-title.win{ color: var(--chalk-yellow); }
+  .end-title.lose{ color: var(--chalk-coral); }
+  .end-stats{
+    font-family:'Space Mono', monospace;
+    color: var(--chalk-blue);
+    margin-bottom: 24px;
+  }
+
+  .actions-row{
+    display:flex;
+    gap: 12px;
+    justify-content:center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .footer-note{
+    text-align:center;
+    font-family:'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.35);
+    padding: 10px 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="board" id="board">
+    <h1 class="title">El Pizarrón</h1>
+    <div class="subtitle" id="subtitle">// asociá cada palabra con su definición antes de quedarte sin tiza</div>
+    <div id="app"></div>
+  </div>
+  <div class="tray"></div>
+</div>
+
+<script>
+const DEFAULT_LIST = `Repuestos: spare parts
+Sí estas apurado: if you are in a hurry
+Salidas: outings
+Sobrevivir: survive "sor-vaiv"
+Vianda: prepared meals
+Feria: fair "fear"
+Llegar más temprano: get earlier
+Vestirse bien: get dressed properly
+Tacos: high heels
+Yuyos: weeds
+Rucula: arugula`;
+
+const app = document.getElementById('app');
+const boardEl = document.getElementById('board');
+
+let state = {
+  screen: 'setup', // setup | playing | win | lose | level2 | level2done
+  words: [],
+  queue: [],
+  currentIndex: 0,
+  currentOptions: [],
+  lives: 3,
+  maxLives: 3,
+  score: 0,
+  streak: 0,
+  answered: false,
+  level2Queue: [],
+  level2Index: 0,
+  level2State: 'answering' // answering | wrong
+};
+
+function parseWords(text){
+  return text.split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .map(line => {
+      const idx = line.indexOf(':');
+      if(idx === -1) return null;
+      const palabra = line.slice(0, idx).trim();
+      let resto = line.slice(idx + 1).trim();
+      // si viene con una pista de pronunciación entre comillas, se descarta: no se usa en el juego
+      const m = resto.match(/["""]([^"""]+)["""]\s*$/);
+      if(m){
+        resto = resto.slice(0, m.index).trim();
+      }
+      if(!palabra || !resto) return null;
+      return { palabra, definicion: resto };
+    })
+    .filter(Boolean);
+}
+
+function normalizeAnswer(s){
+  return s
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[.,;:!?"'¡¿]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function render(){
+  document.getElementById('subtitle').textContent = state.screen === 'level2' || state.screen === 'level2done'
+    ? '// nivel 2: escribí la definición en inglés vos mismo'
+    : '// asociá cada palabra con su definición antes de quedarte sin tiza';
+  if(state.screen === 'setup') return renderSetup();
+  if(state.screen === 'playing') return renderPlaying();
+  if(state.screen === 'win') return renderEnd(true);
+  if(state.screen === 'lose') return renderEnd(false);
+  if(state.screen === 'level2') return renderLevel2();
+  if(state.screen === 'level2done') return renderLevel2Done();
+}
+
+function renderSetup(){
+  app.innerHTML = `
+    <div class="setup">
+      <label for="wordInput">Tu lista de palabras (una por línea, "palabra: definición")</label>
+      <textarea id="wordInput" spellcheck="false">${DEFAULT_LIST}</textarea>
+      <div class="hint-text">Formato: <em>palabra en español: definición en inglés</em>, una por línea.</div>
+      <div class="word-count" id="wordCount"></div>
+      <div class="actions-row">
+        <button class="chalk-btn primary" id="startBtn">Empezar el juego</button>
+      </div>
+    </div>
+  `;
+  const textarea = document.getElementById('wordInput');
+  const wordCountEl = document.getElementById('wordCount');
+  const startBtn = document.getElementById('startBtn');
+
+  function updateCount(){
+    const parsed = parseWords(textarea.value);
+    wordCountEl.textContent = parsed.length === 1
+      ? '1 palabra cargada'
+      : `${parsed.length} palabras cargadas` + (parsed.length < 4 ? ' — cargá al menos 4 para tener buenas opciones múltiples' : '');
+  }
+  updateCount();
+  textarea.addEventListener('input', updateCount);
+
+  startBtn.addEventListener('click', () => {
+    const parsed = parseWords(textarea.value);
+    if(parsed.length < 2){
+      wordCountEl.textContent = 'Necesitás al menos 2 palabras con el formato "palabra: definición"';
+      wordCountEl.style.color = 'var(--chalk-coral)';
+      return;
+    }
+    startGame(parsed);
+  });
+}
+
+function startGame(words){
+  state.words = words;
+  state.queue = shuffle(words);
+  state.currentIndex = 0;
+  state.lives = 3;
+  state.maxLives = 3;
+  state.score = 0;
+  state.streak = 0;
+  state.answered = false;
+  state.screen = 'playing';
+  buildOptionsForCurrent();
+  render();
+}
+
+function buildOptionsForCurrent(){
+  const current = state.queue[state.currentIndex];
+  const others = state.words.filter(w => w.palabra !== current.palabra);
+  const distractorPool = shuffle(others).slice(0, 3);
+  const options = shuffle([current, ...distractorPool]);
+  state.currentOptions = options.map(o => ({ text: o.definicion, isCorrect: o.palabra === current.palabra }));
+  state.answered = false;
+}
+
+function renderPlaying(){
+  const current = state.queue[state.currentIndex];
+  const livesHtml = Array.from({length: state.maxLives}, (_, i) =>
+    `<div class="chalk-stub ${i < state.lives ? '' : 'lost'}"></div>`
+  ).join('');
+
+  app.innerHTML = `
+    <div class="hud">
+      <div class="lives">${livesHtml}</div>
+      <div class="score-box">PUNTOS: ${state.score}</div>
+      <div class="progress-box">${state.currentIndex + 1} / ${state.queue.length}</div>
+    </div>
+    <div class="question-card">
+      <div class="level-tag">Nivel 1</div>
+      <div class="eyebrow">¿qué significa...?</div>
+      <div class="palabra">${current.palabra}</div>
+    </div>
+    <div class="options" id="optionsGrid"></div>
+    <div class="feedback-line" id="feedback"></div>
+  `;
+
+  const grid = document.getElementById('optionsGrid');
+  state.currentOptions.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt.text;
+    btn.addEventListener('click', () => handleAnswer(i));
+    grid.appendChild(btn);
+  });
+}
+
+function handleAnswer(i){
+  if(state.answered) return;
+  state.answered = true;
+  const chosen = state.currentOptions[i];
+  const buttons = document.querySelectorAll('.option-btn');
+  const feedback = document.getElementById('feedback');
+
+  buttons.forEach((b, idx) => {
+    b.disabled = true;
+    if(state.currentOptions[idx].isCorrect) b.classList.add('correct');
+  });
+
+  if(chosen.isCorrect){
+    state.streak += 1;
+    state.score += 10 + (state.streak - 1) * 2;
+    feedback.textContent = state.streak > 1 ? `¡Correcto! Racha de ${state.streak} 🟡` : '¡Correcto!';
+    feedback.className = 'feedback-line ok';
+  } else {
+    buttons[i].classList.add('wrong');
+    state.streak = 0;
+    state.lives -= 1;
+    feedback.textContent = 'No era esa. La tiza se borra un poco...';
+    feedback.className = 'feedback-line bad';
+    const wipe = document.createElement('div');
+    wipe.className = 'eraser-wipe';
+    boardEl.appendChild(wipe);
+    setTimeout(() => wipe.remove(), 650);
+  }
+
+  setTimeout(() => {
+    if(state.lives <= 0){
+      state.screen = 'lose';
+      render();
+      return;
+    }
+    state.currentIndex += 1;
+    if(state.currentIndex >= state.queue.length){
+      state.screen = 'win';
+      render();
+      return;
+    }
+    buildOptionsForCurrent();
+    render();
+  }, 1100);
+}
+
+function renderEnd(won){
+  const total = state.queue.length;
+  app.innerHTML = `
+    <div class="end-screen">
+      <div class="end-title ${won ? 'win' : 'lose'}">${won ? '¡Ganaste! 🎉' : 'Se acabó la tiza'}</div>
+      <div class="end-stats">Puntaje final: ${state.score} · Palabras vistas: ${state.currentIndex + (won ? 0 : 1)} / ${total}</div>
+      <div class="actions-row">
+        ${won ? `<button class="chalk-btn primary" id="nextLevelBtn">Pasar al siguiente nivel</button>` : ''}
+        <button class="chalk-btn${won ? '' : ' primary'}" id="retryBtn">Jugar de nuevo</button>
+        <button class="chalk-btn" id="editBtn">Editar lista</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('retryBtn').addEventListener('click', () => {
+    startGame(state.words);
+  });
+  document.getElementById('editBtn').addEventListener('click', () => {
+    state.screen = 'setup';
+    render();
+  });
+  if(won){
+    document.getElementById('nextLevelBtn').addEventListener('click', () => {
+      startLevel2(state.words);
+    });
+  }
+}
+
+/* ---------------- NIVEL 2: respuesta escrita ---------------- */
+
+function startLevel2(words){
+  state.level2Queue = shuffle(words);
+  state.level2Index = 0;
+  state.level2State = 'answering';
+  state.screen = 'level2';
+  render();
+}
+
+function renderLevel2(){
+  const current = state.level2Queue[state.level2Index];
+  app.innerHTML = `
+    <div class="hud">
+      <div class="score-box">PUNTOS: ${state.score}</div>
+      <div class="progress-box">${state.level2Index + 1} / ${state.level2Queue.length}</div>
+    </div>
+    <div class="question-card">
+      <div class="level-tag">Nivel 2</div>
+      <div class="eyebrow">escribí la definición en inglés</div>
+      <div class="palabra">${current.palabra}</div>
+    </div>
+    <input type="text" class="answer-input" id="answerInput" autocomplete="off" placeholder="tu respuesta en inglés..." />
+    <div class="feedback-line" id="feedback"></div>
+    <div class="actions-row" id="level2Actions"></div>
+  `;
+
+  const input = document.getElementById('answerInput');
+  input.focus();
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') checkLevel2Answer();
+  });
+
+  const actions = document.getElementById('level2Actions');
+  const submitBtn = document.createElement('button');
+  submitBtn.className = 'chalk-btn primary';
+  submitBtn.textContent = 'Comprobar';
+  submitBtn.addEventListener('click', checkLevel2Answer);
+  actions.appendChild(submitBtn);
+}
+
+function checkLevel2Answer(){
+  const current = state.level2Queue[state.level2Index];
+  const input = document.getElementById('answerInput');
+  const feedback = document.getElementById('feedback');
+  const actions = document.getElementById('level2Actions');
+  if(input.disabled) return;
+
+  const isCorrect = normalizeAnswer(input.value) === normalizeAnswer(current.definicion);
+
+  input.disabled = true;
+  actions.innerHTML = '';
+
+  if(isCorrect){
+    input.classList.add('correct-input');
+    state.score += 15;
+    feedback.textContent = '¡Correcto! 🟢';
+    feedback.className = 'feedback-line ok';
+    setTimeout(() => advanceLevel2(), 1000);
+  } else {
+    input.classList.add('wrong-input');
+    feedback.textContent = 'No es la definición correcta.';
+    feedback.className = 'feedback-line bad';
+
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'chalk-btn';
+    retryBtn.textContent = 'Reintentar';
+    retryBtn.addEventListener('click', () => {
+      input.disabled = false;
+      input.value = '';
+      input.classList.remove('wrong-input');
+      input.focus();
+      feedback.textContent = '';
+      actions.innerHTML = '';
+      actions.appendChild(retryBtn);
+      actions.appendChild(showBtn);
+    });
+
+    const showBtn = document.createElement('button');
+    showBtn.className = 'chalk-btn primary';
+    showBtn.textContent = 'Mostrar respuesta y avanzar';
+    showBtn.addEventListener('click', () => {
+      feedback.innerHTML = `La respuesta era: <span class="reveal-answer">${current.definicion}</span>`;
+      actions.innerHTML = '';
+      // esta palabra se vuelve a preguntar al final del nivel
+      state.level2Queue.push(current);
+      setTimeout(() => advanceLevel2(), 1400);
+    });
+
+    actions.appendChild(retryBtn);
+    actions.appendChild(showBtn);
+  }
+}
+
+function advanceLevel2(){
+  state.level2Index += 1;
+  if(state.level2Index >= state.level2Queue.length){
+    state.screen = 'level2done';
+    render();
+    return;
+  }
+  render();
+}
+
+function renderLevel2Done(){
+  app.innerHTML = `
+    <div class="end-screen">
+      <div class="end-title win">¡Completaste los dos niveles! 🏆</div>
+      <div class="end-stats">Puntaje final: ${state.score}</div>
+      <div class="actions-row">
+        <button class="chalk-btn primary" id="retryBtn">Jugar de nuevo desde el nivel 1</button>
+        <button class="chalk-btn" id="editBtn">Editar lista</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('retryBtn').addEventListener('click', () => {
+    startGame(state.words);
+  });
+  document.getElementById('editBtn').addEventListener('click', () => {
+    state.screen = 'setup';
+    render();
+  });
+}
+
+render();
+</script>
+
+<div class="footer-note">hecho para practicar vocabulario — sin conexión externa, todo corre en tu navegador</div>
+
+</body>
+</html>
