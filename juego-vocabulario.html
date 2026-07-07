@@ -278,6 +278,32 @@
     color: #ffd9d0;
   }
 
+  .level-choice{
+    text-align:center;
+    font-family:'Kalam', cursive;
+    font-size: 1.4rem;
+    font-weight:700;
+    padding: 26px 14px;
+  }
+  .level-easy{
+    border-color: #7bd88f;
+    background: rgba(123,216,143,0.12);
+    color: #d7f7de;
+  }
+  .level-easy:hover:not(:disabled){
+    border-color: #7bd88f;
+    background: rgba(123,216,143,0.22);
+  }
+  .level-difficult{
+    border-color: var(--chalk-coral);
+    background: rgba(232,115,92,0.12);
+    color: #ffd9d0;
+  }
+  .level-difficult:hover:not(:disabled){
+    border-color: var(--chalk-coral);
+    background: rgba(232,115,92,0.22);
+  }
+
   /* eraser wipe animation */
   .eraser-wipe{
     position:absolute;
@@ -483,15 +509,11 @@ function renderLevelSelect(){
   app.innerHTML = `
     <div class="question-card">
       <div class="eyebrow">elegí tu nivel</div>
-      <div class="palabra" style="font-size:1.6rem;">¿Cómo querés practicar?</div>
+      <div class="palabra" style="font-size:1.6rem;">Elige tu nivel</div>
     </div>
     <div class="options" id="levelGrid">
-      <button class="option-btn level-choice" id="easyBtn">
-        <strong>Easy</strong><br>Elegí la definición correcta entre varias opciones.
-      </button>
-      <button class="option-btn level-choice" id="difficultBtn">
-        <strong>Difficult</strong><br>Respondé de memoria y comprobá vos mismo si acertaste.
-      </button>
+      <button class="option-btn level-choice level-easy" id="easyBtn">Fácil</button>
+      <button class="option-btn level-choice level-difficult" id="difficultBtn">Difícil</button>
     </div>
     <div class="actions-row" style="margin-top:20px;">
       <button class="chalk-btn" id="backBtn">Volver a editar lista</button>
