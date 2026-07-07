@@ -101,6 +101,9 @@
     padding: 14px;
     resize: vertical;
   }
+  textarea::placeholder{
+    color: rgba(245,245,240,0.35);
+  }
   textarea:focus{
     outline: 2px solid var(--chalk-yellow);
     outline-offset: 2px;
@@ -145,6 +148,12 @@
   }
   .chalk-btn.primary:hover{
     background: rgba(242,193,78,0.12);
+  }
+  .chalk-btn.ghost{
+    border-color: rgba(255,255,255,0.35);
+    color: rgba(255,255,255,0.7);
+    font-size: 0.95rem;
+    padding: 8px 18px;
   }
 
   /* ---------- HUD ---------- */
@@ -359,7 +368,7 @@
 </div>
 
 <script>
-const DEFAULT_LIST = `Repuestos: spare parts
+const EXAMPLE_LIST = `Repuestos: spare parts
 Sí estas apurado: if you are in a hurry
 Salidas: outings
 Sobrevivir: survive "sor-vaiv"
@@ -443,27 +452,40 @@ function render(){
 function renderSetup(){
   app.innerHTML = `
     <div class="setup">
-      <label for="wordInput">Tu lista de palabras (una por línea, "palabra: definición")</label>
-      <textarea id="wordInput" spellcheck="false">${DEFAULT_LIST}</textarea>
+      <label for="wordInput">Pegá tu lista de palabras (una por línea, "palabra: definición")</label>
+      <textarea id="wordInput" spellcheck="false" placeholder="${EXAMPLE_LIST.replace(/"/g, '&quot;')}"></textarea>
       <div class="hint-text">Formato: <em>palabra en español: definición en inglés</em>, una por línea.</div>
-      <div class="word-count" id="wordCount"></div>
+      <div class="word-count" id="wordCount">El pizarrón está vacío. Pegá tu lista arriba.</div>
       <div class="actions-row">
         <button class="chalk-btn primary" id="startBtn">Empezar el juego</button>
+        <button class="chalk-btn ghost" id="exampleBtn">Cargar ejemplo</button>
       </div>
     </div>
   `;
   const textarea = document.getElementById('wordInput');
   const wordCountEl = document.getElementById('wordCount');
   const startBtn = document.getElementById('startBtn');
+  const exampleBtn = document.getElementById('exampleBtn');
 
   function updateCount(){
     const parsed = parseWords(textarea.value);
+    wordCountEl.style.color = 'var(--chalk-blue)';
+    if(textarea.value.trim() === ''){
+      wordCountEl.textContent = 'El pizarrón está vacío. Pegá tu lista arriba.';
+      return;
+    }
     wordCountEl.textContent = parsed.length === 1
       ? '1 palabra cargada'
       : `${parsed.length} palabras cargadas` + (parsed.length < 4 ? ' — cargá al menos 4 para tener buenas opciones múltiples' : '');
   }
   updateCount();
   textarea.addEventListener('input', updateCount);
+
+  exampleBtn.addEventListener('click', () => {
+    textarea.value = EXAMPLE_LIST;
+    updateCount();
+    textarea.focus();
+  });
 
   startBtn.addEventListener('click', () => {
     const parsed = parseWords(textarea.value);
